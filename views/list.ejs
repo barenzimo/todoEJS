@@ -9,20 +9,26 @@
             </div>
             <div class="box">
 
-                <%for(let i=0; i <items.length; i++){ %>
-                    <div class="item">
-                        <input type="checkbox">
-                        <p>
-                            <%=items[i]%>
-                        </p>
-                    </div>
-                    <%}%>
+                <% items.forEach(element=>{ %>
+                    <form method="post" action="/delete">
+                        <div class="item">
+                            <input type="checkbox" name="checkbox" value=<%=element._id%>
+                            onChange="this.form.submit()">
+                            <p>
+                                <%=element.name%>
+                            </p>
+                        </div>
+                        <input type="hidden" name="listName" value=<%=listTitle %> ></input>
+                    </form>
+                    <% }) %>
+
+
 
                         <!-- input button -->
-                        <form action="/" method="post" id="form1">
+                        <form action=" /" method="post" id="form1">
                             <input type="text" name="newItem" placeholder="Enter new todo item"
                                 autocomplete="off"></input>
-                            <button type="submit" name="list" value=<%=listTitle%> </button>
+                            <button type="submit" name="list" value=<%=listTitle%>+ </button>
                         </form>
 
             </div>
