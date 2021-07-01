@@ -1,23 +1,24 @@
 const express = require("express");
-const dateOfToday = require(__dirname + "/date.js");
 const mongoose = require("mongoose");
-let day;
-let items = ["Raja", "Mia"];
-let itemsWork = [];
+const _ = require("lodash");
 
 const app = express();
 app.set("view engine", "ejs");
 app.use(express.static("public"));
 app.use(express.urlencoded({ extended: true }));
+mongoose.set("useFindAndModify", false);
 // ----------------------Connecting to database-----------------------------
-mongoose.connect("mongodb://localhost:27017/todolistDB", {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+mongoose.connect(
+  "mongodb+srv://admin-aman:Test123@cluster0.3bf5d.mongodb.net/myFirstDatabase?retryWrites=true&w=majority",
+  {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  }
+);
 const itemsSchema = {
   name: String,
 };
-//default utems in Item model
+//default items in Item model
 const Item = mongoose.model("Item", itemsSchema);
 const item1 = new Item({
   name: "Welcome to your todoList!",
@@ -29,42 +30,66 @@ const item3 = new Item({
   name: "<-- Hit this to delete items",
 });
 const defaultItems = [item1, item2, item3];
-
-//loggind database
+// database for custom route
+const listSchema = { name: String, items: [itemsSchema] };
+const List = mongoose.model("List", listSchema);
 
 // ----------------------Home route-----------------------------
 app.get("/", (req, res) => {
-  date = dateOfToday.getDate();
-  //Note-- we're not passing the Item, first finding it then passing
-  Item.find({}, (err, elements) => {
-    if (elements.length === 0) {
-      Item.insertMany(defaultItems, (err) => {
-        err ? console.log(err) : console.log("Successfully inserted");
-      });
-      res.redirect("/");
-    } else res.render("list", { listTitle: date, items: elements });
+  res.redirect("/home");
+});
+
+// ----------------------Custom route-----------------------------
+app.get("/:paramName", (req, res) => {
+  const listName = _.capitalize(req.params.paramName);
+  // displaying the custom list items
+  List.findOne({ name: listName }, (err, foundItems) => {
+    if (!foundItems) {
+      // creating a custom list item
+      const customListItem = new List({ name: listName, items: defaultItems });
+      customListItem.save();
+      res.redirect("/" + listName);
+    } else {
+      // showing an existing list
+
+      res.render("list", { listTitle: listName, items: foundItems.items });
+    }
   });
 });
 
+//---------------- Post route for todo------------------------
 app.post("/", (req, res) => {
-  const newItemPost = req.body.newItem;
-  Item.create({ name: newItemPost }, (err) =>
-    err ? console.log(err) : console.log("Inserted New Item")
-  );
-  res.redirect("/");
+  const newListItem = req.body.newItem;
+  const listName = req.body.list;
+  //inserting the passed value into collection
+  //to push an array, it has to be of items schema
+  const item = new Item({ name: newListItem });
+  //now pushing this array into collection
+  List.findOne({ name: listName }, (err, foundItem) => {
+    foundItem.items.push(item);
+    foundItem.save();
+    res.redirect("/" + listName);
+  });
 });
 
 //---------------- Delete route for todo------------------------
 app.post("/delete", (req, res) => {
   console.log(req.body);
-  Item.deleteOne({ _id: req.body.checkbox }, (err) => console.log(err));
-  res.redirect("/");
-});
+  const listName = req.body.listName;
+  const id = req.body.checkbox;
 
-//---------------- WOrk route------------------------
-app.get("/work", (req, res) =>
-  res.render("list", { listTitle: "Work", items: itemsWork })
-);
+  List.findOneAndUpdate(
+    { name: listName },
+    { $pull: { items: { _id: id } } },
+    function (err, list) {
+      if (!err) {
+        res.redirect("/" + listName);
+      }
+    }
+  );
+  // Item.deleteOne({ _id: req.body.checkbox }, (err) => console.log(err));
+  // res.redirect("/");
+});
 
 //---------------- About route------------------------
 app.get("/about", (req, res) => {
